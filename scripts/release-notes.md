@@ -8,9 +8,9 @@ Claude Code 時代の、自分専用ミニマルターミナル。
 
 | ファイル | 内容 |
 |---|---|
-| `mbcode-1.0.0.zip` | **Standard（おすすめ）** — タブ + ⌘K コマンドパレット |
-| `mbcode-lite-1.0.0.zip` | Lite — 最小構成（クイックコマンドはメニュー/⌘1〜9のみ） |
-| `mbcode-pro-1.0.0.zip` | Pro — Standard + ⌥Space でどこからでも呼び出せるターミナル |
+| `mbcode.zip` | **Standard（おすすめ）** — タブ + ⌘K コマンドパレット |
+| `mbcode-lite.zip` | Lite — 最小構成（クイックコマンドはメニュー/⌘1〜9のみ） |
+| `mbcode-pro.zip` | Pro — Standard + ⌥Space でどこからでも呼び出せるターミナル |
 
 すべて Developer ID 署名 + Apple 公証済み。解凍してアプリケーションフォルダへ入れるだけで動きます。
 

@@ -26,7 +26,7 @@ mkdir -p dist/upload
 FAIL=0
 for name in "${APPS[@]}"; do
   APP="dist/${name}.app"
-  ZIP="dist/upload/${name}-${VERSION}.zip"
+  ZIP="dist/upload/${name}.zip"    # バージョン無し名で releases/latest リンクを恒久化
   rm -f "$ZIP"
   ditto -c -k --keepParent "$APP" "$ZIP"
   log "submit: $name"
@@ -48,9 +48,9 @@ done
 
 log "GitHub Release作成"
 gh release create "v${VERSION}" \
-  dist/upload/mbcode-${VERSION}.zip \
-  dist/upload/mbcode-lite-${VERSION}.zip \
-  dist/upload/mbcode-pro-${VERSION}.zip \
+  dist/upload/mbcode.zip \
+  dist/upload/mbcode-lite.zip \
+  dist/upload/mbcode-pro.zip \
   --title "mbcode v${VERSION}" \
   --notes-file scripts/release-notes.md >> "$LOG" 2>&1 || { log "ERROR: gh release create 失敗"; exit 4; }
 
