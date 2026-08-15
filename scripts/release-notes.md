@@ -1,16 +1,17 @@
-# mbcode v1.0.0
+# Kurogane v1.1.1
 
-Claude Code 時代の、自分専用ミニマルターミナル。
+マイク修正リリース。ターミナル内で動かすツール（Claude Code の音声入力など）がマイクを使えるようになりました。
 
-「ターミナルを開いて、cd して、`claude --dangerously-skip-permissions` と打つ」を、**`cc` + Enter だけ**にしました。
+- 修正: hardened runtime のマイク entitlement と `NSMicrophoneUsageDescription` が無く、Claude Code のスペース押しっぱなし音声入力が「No audio detected from microphone」で失敗していた問題
+- 初回にマイク使用時、macOS の許可ダイアログが出るので「許可」を押してください
 
 ## ダウンロード（3エディション）
 
 | ファイル | 内容 |
 |---|---|
-| `mbcode.zip` | **Standard（おすすめ）** — タブ + ⌘K コマンドパレット |
-| `mbcode-lite.zip` | Lite — 最小構成（クイックコマンドはメニュー/⌘1〜9のみ） |
-| `mbcode-pro.zip` | Pro — Standard + ⌥Space でどこからでも呼び出せるターミナル |
+| `Kurogane.zip` | **Standard（おすすめ）** — タブ + ⌘K コマンドパレット |
+| `Kurogane-lite.zip` | Lite — 最小構成（クイックコマンドはメニュー/⌘1〜9のみ） |
+| `Kurogane-pro.zip` | Pro — Standard + ⌥Space でどこからでも呼び出せるターミナル |
 
 すべて Developer ID 署名 + Apple 公証済み。解凍してアプリケーションフォルダへ入れるだけで動きます。
 

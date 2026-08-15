@@ -4,8 +4,8 @@
 set -u
 cd "$(dirname "$0")/.."
 LOG=dist/notarize.log
-VERSION=1.0.0
-APPS=("mbcode-lite" "mbcode" "mbcode-pro")
+VERSION=1.1.1
+APPS=("Kurogane Lite:Kurogane-lite" "Kurogane:Kurogane" "Kurogane Pro:Kurogane-pro")
 
 log() { echo "[$(date '+%H:%M:%S')] $*" >> "$LOG"; }
 
@@ -24,9 +24,10 @@ done
 
 mkdir -p dist/upload
 FAIL=0
-for name in "${APPS[@]}"; do
+for pair in "${APPS[@]}"; do
+  name="${pair%%:*}"; zipname="${pair##*:}"
   APP="dist/${name}.app"
-  ZIP="dist/upload/${name}.zip"    # バージョン無し名で releases/latest リンクを恒久化
+  ZIP="dist/upload/${zipname}.zip"    # バージョン無し名で releases/latest リンクを恒久化
   rm -f "$ZIP"
   ditto -c -k --keepParent "$APP" "$ZIP"
   log "submit: $name"
@@ -48,10 +49,10 @@ done
 
 log "GitHub Release作成"
 gh release create "v${VERSION}" \
-  dist/upload/mbcode.zip \
-  dist/upload/mbcode-lite.zip \
-  dist/upload/mbcode-pro.zip \
-  --title "mbcode v${VERSION}" \
+  dist/upload/Kurogane.zip \
+  dist/upload/Kurogane-lite.zip \
+  dist/upload/Kurogane-pro.zip \
+  --title "Kurogane v${VERSION}" \
   --notes-file scripts/release-notes.md >> "$LOG" 2>&1 || { log "ERROR: gh release create 失敗"; exit 4; }
 
 log "=== 完了: https://github.com/manabubannai/mbcode/releases/tag/v${VERSION} ==="

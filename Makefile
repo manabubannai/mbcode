@@ -1,4 +1,4 @@
-VERSION  = 1.0.0
+VERSION  = 1.1.1
 IDENTITY = Developer ID Application: Manabu Bannai (4WRDD55WT2)
 BIN      = .build/release/mbcode
 
@@ -22,23 +22,24 @@ define assemble
 	cp $(BIN) "dist/$(3).app/Contents/MacOS/mbcode"
 	cp dist/mbcode.icns "dist/$(3).app/Contents/Resources/mbcode.icns"
 	codesign --force --options runtime --timestamp \
+	    --entitlements Resources/mbcode.entitlements \
 	    --sign "$(IDENTITY)" "dist/$(3).app"
 endef
 
 lite: icon
 	swift build -c release
-	$(call assemble,mbcode Lite,com.manabu.mbcode.lite,mbcode-lite)
+	$(call assemble,Kurogane Lite,com.manabu.mbcode.lite,Kurogane Lite)
 
 standard: icon
 	swift build -c release $(STD_FLAGS)
-	$(call assemble,mbcode,com.manabu.mbcode,mbcode)
+	$(call assemble,Kurogane,com.manabu.mbcode,Kurogane)
 
 pro: icon
 	swift build -c release $(PRO_FLAGS)
-	$(call assemble,mbcode Pro,com.manabu.mbcode.pro,mbcode-pro)
+	$(call assemble,Kurogane Pro,com.manabu.mbcode.pro,Kurogane Pro)
 
 run: standard
-	open dist/mbcode.app
+	open "dist/Kurogane.app"
 
 clean:
 	rm -rf .build dist

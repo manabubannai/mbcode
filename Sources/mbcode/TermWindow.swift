@@ -19,7 +19,7 @@ final class TermWindowController: NSWindowController, NSWindowDelegate, LocalPro
             backing: .buffered,
             defer: false
         )
-        window.title = command?.title ?? "mbcode"
+        window.title = command?.title ?? "Kurogane"
         #if FEATURE_TABS
         window.tabbingMode = .preferred
         #else
@@ -96,7 +96,7 @@ final class TermWindowController: NSWindowController, NSWindowDelegate, LocalPro
     func sizeChanged(source: LocalProcessTerminalView, newCols: Int, newRows: Int) {}
 
     func setTerminalTitle(source: LocalProcessTerminalView, title: String) {
-        window?.title = title.isEmpty ? (initialCommand?.title ?? "mbcode") : title
+        window?.title = title.isEmpty ? (initialCommand?.title ?? "Kurogane") : title
     }
 
     func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {}
