@@ -56,6 +56,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSWorkspace.shared.open(URL(fileURLWithPath: Config.path))
     }
 
+    @objc func reportBug(_ sender: Any?) {
+        BugReport.shared.show()
+    }
+
     @objc func fontBigger(_ sender: Any?) { changeFont(by: +1) }
     @objc func fontSmaller(_ sender: Any?) { changeFont(by: -1) }
     @objc func fontReset(_ sender: Any?) {
@@ -89,6 +93,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         appMenu.addItem(NSMenuItem.separator())
         let pref = NSMenuItem(title: "設定を開く（config.json）", action: #selector(openConfig(_:)), keyEquivalent: ",")
         appMenu.addItem(pref)
+        appMenu.addItem(withTitle: "バグを報告…", action: #selector(reportBug(_:)), keyEquivalent: "")
         appMenu.addItem(NSMenuItem.separator())
         appMenu.addItem(withTitle: "Hide \(appName)", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
         appMenu.addItem(NSMenuItem.separator())
