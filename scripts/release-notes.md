@@ -1,6 +1,8 @@
-# Kurogane v1.2.0
+# Kurogane v1.2.1
 
 デザイン刷新リリース。macOS標準ターミナルの見やすさをそのまま移植しました。
+
+- v1.2.1: 文字とウィンドウ端の余白を追加（デフォルト14px、`config.json` の `padding` で調整可）
 
 - 新デフォルトテーマ「clear-light」: 白の半透明背景（すりガラスぼかし付き）+ ANSI16色フルパレット。Terminal.app の「Clear Light」プロファイル実測値ベース
 - 行間を約1.3倍に（Terminal.app 同等）。`config.json` の `lineSpacing` で調整可

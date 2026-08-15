@@ -22,6 +22,7 @@ struct ConfigFile: Codable {
     var fontSize: CGFloat?
     var theme: String?
     var lineSpacing: CGFloat?
+    var padding: CGFloat?
     var shell: String?
     var windowWidth: CGFloat?
     var windowHeight: CGFloat?
@@ -38,6 +39,7 @@ enum Config {
     private(set) static var fontSize: CGFloat = 13
     private(set) static var themeName: String = "clear-light"
     private(set) static var lineSpacing: CGFloat = 1.29   // Terminal.app の FontHeightSpacing 相当
+    private(set) static var padding: CGFloat = 14         // 文字とウィンドウ端の余白（Terminal.app 相当）
     private(set) static var shell: String? = nil
     private(set) static var windowWidth: CGFloat = 980
     private(set) static var windowHeight: CGFloat = 640
@@ -84,6 +86,7 @@ enum Config {
         fontSize = file.fontSize ?? fontSize
         themeName = file.theme ?? themeName
         lineSpacing = file.lineSpacing ?? lineSpacing
+        padding = file.padding ?? padding
         shell = file.shell ?? shell
         windowWidth = file.windowWidth ?? windowWidth
         windowHeight = file.windowHeight ?? windowHeight
@@ -97,6 +100,7 @@ enum Config {
       "fontSize": 13,
       "theme": "clear-light",
       "lineSpacing": 1.29,
+      "padding": 14,
       "hotkey": "option-space",
       "commands": [
         { "keyword": "cc", "title": "Claude Code（全権限モード）",

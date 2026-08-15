@@ -94,11 +94,13 @@ final class HotKeyTerminal: NSObject, NSWindowDelegate, LocalProcessTerminalView
         panel.delegate = self
         panel.isReleasedWhenClosed = false
 
-        let terminal = LocalProcessTerminalView(frame: panel.contentLayoutRect)
+        let container = NSView(frame: panel.contentLayoutRect)
+        let terminal = LocalProcessTerminalView(frame: container.bounds.insetBy(dx: Config.padding, dy: Config.padding))
         terminal.processDelegate = self
         terminal.applyTheme(theme)
         terminal.autoresizingMask = [.width, .height]
-        panel.contentView = terminal
+        container.addSubview(terminal)
+        panel.contentView = container
         terminal.startProcess(executable: Config.resolvedShell, args: Config.shellArgs)
 
         self.panel = panel

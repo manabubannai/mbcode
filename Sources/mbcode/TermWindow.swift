@@ -27,8 +27,10 @@ extension LocalProcessTerminalView {
                                        blue: UInt16(s.blueComponent * 65535))
             })
         }
+        // 半透明テーマでは背景塗りをウィンドウ側に一本化する
+        // （ここでも塗ると二重合成になり、余白との濃さが揃わない）
         nativeBackgroundColor = theme.backgroundAlpha < 1.0
-            ? theme.background.withAlphaComponent(theme.backgroundAlpha)
+            ? theme.background.withAlphaComponent(0)
             : theme.background
     }
 }
@@ -37,7 +39,8 @@ extension LocalProcessTerminalView {
 func applyWindowChrome(_ window: NSWindow, theme: Theme) {
     if theme.backgroundAlpha < 1.0 {
         window.isOpaque = false
-        window.backgroundColor = .clear
+        // 余白部分もターミナル本体と同じ半透明色で塗る
+        window.backgroundColor = theme.background.withAlphaComponent(theme.backgroundAlpha)
     } else {
         window.isOpaque = true
         window.backgroundColor = theme.background
@@ -80,7 +83,12 @@ final class TermWindowController: NSWindowController, NSWindowDelegate, LocalPro
         terminal.processDelegate = self
         applyAppearance()
 
-        window.contentView = terminal
+        // 文字がウィンドウ端に張り付かないよう余白を入れる（余白部分はウィンドウ背景色が見える）
+        let container = NSView(frame: rect)
+        terminal.frame = container.bounds.insetBy(dx: Config.padding, dy: Config.padding)
+        terminal.autoresizingMask = [.width, .height]
+        container.addSubview(terminal)
+        window.contentView = container
 
         let shell = Config.resolvedShell
         terminal.startProcess(executable: shell, args: Config.shellArgs)
