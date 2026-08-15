@@ -1,9 +1,12 @@
-# Kurogane v1.1.1
+# Kurogane v1.2.0
 
-マイク修正リリース。ターミナル内で動かすツール（Claude Code の音声入力など）がマイクを使えるようになりました。
+デザイン刷新リリース。macOS標準ターミナルの見やすさをそのまま移植しました。
 
-- 修正: hardened runtime のマイク entitlement と `NSMicrophoneUsageDescription` が無く、Claude Code のスペース押しっぱなし音声入力が「No audio detected from microphone」で失敗していた問題
-- 初回にマイク使用時、macOS の許可ダイアログが出るので「許可」を押してください
+- 新デフォルトテーマ「clear-light」: 白の半透明背景（すりガラスぼかし付き）+ ANSI16色フルパレット。Terminal.app の「Clear Light」プロファイル実測値ベース
+- 行間を約1.3倍に（Terminal.app 同等）。`config.json` の `lineSpacing` で調整可
+- フォント指定に対応（デフォルトは PlemolJP Console NF があれば使用、無ければ等幅システムフォント）
+- 選択色・カーソル色もテーマに追従。従来のダーク系テーマ（manabu-dark 等）も `config.json` の `theme` で選択可
+- v1.1.1 のマイク修正（Claude Code 音声入力対応）も同梱。初回マイク使用時は macOS の許可ダイアログで「許可」を押してください
 
 ## ダウンロード（3エディション）
 

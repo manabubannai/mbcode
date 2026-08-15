@@ -1,6 +1,54 @@
 import AppKit
 import SwiftTerm
 
+// Terminal.app の「背景ぼかし」相当（プライベートAPI・失敗しても無害）
+private typealias CGSConnectionID = UInt32
+@_silgen_name("CGSDefaultConnectionForThread")
+private func CGSDefaultConnectionForThread() -> CGSConnectionID
+@discardableResult
+@_silgen_name("CGSSetWindowBackgroundBlurRadius")
+private func CGSSetWindowBackgroundBlurRadius(_ cid: CGSConnectionID, _ wid: Int32, _ radius: Int32) -> Int32
+
+extension LocalProcessTerminalView {
+    // テーマの全属性（フォント・行間・ANSI16色・選択色・半透明背景）をまとめて反映する
+    func applyTheme(_ theme: Theme) {
+        font = FontState.current
+        lineSpacing = Config.lineSpacing
+        nativeForegroundColor = theme.foreground
+        caretColor = theme.cursor
+        if let sel = theme.selection {
+            selectedTextBackgroundColor = sel
+        }
+        if let ansi = theme.ansi {
+            installColors(ansi.map { c in
+                let s = c.usingColorSpace(.sRGB) ?? c
+                return SwiftTerm.Color(red: UInt16(s.redComponent * 65535),
+                                       green: UInt16(s.greenComponent * 65535),
+                                       blue: UInt16(s.blueComponent * 65535))
+            })
+        }
+        nativeBackgroundColor = theme.backgroundAlpha < 1.0
+            ? theme.background.withAlphaComponent(theme.backgroundAlpha)
+            : theme.background
+    }
+}
+
+// 表示済みウィンドウにテーマの半透明・ぼかしを反映する（windowNumber は表示後に確定）
+func applyWindowChrome(_ window: NSWindow, theme: Theme) {
+    if theme.backgroundAlpha < 1.0 {
+        window.isOpaque = false
+        window.backgroundColor = .clear
+    } else {
+        window.isOpaque = true
+        window.backgroundColor = theme.background
+    }
+    if window.windowNumber > 0 {
+        let radius: Int32 = theme.blur && theme.backgroundAlpha < 1.0 ? 26 : 0
+        CGSSetWindowBackgroundBlurRadius(CGSDefaultConnectionForThread(),
+                                         Int32(window.windowNumber), radius)
+    }
+}
+
 // 1ウィンドウ = 1シェル。クイックコマンド指定があれば起動後に流し込む。
 final class TermWindowController: NSWindowController, NSWindowDelegate, LocalProcessTerminalViewDelegate {
     private static var live: [TermWindowController] = []
@@ -33,7 +81,6 @@ final class TermWindowController: NSWindowController, NSWindowDelegate, LocalPro
         applyAppearance()
 
         window.contentView = terminal
-        window.backgroundColor = Config.theme.background
 
         let shell = Config.resolvedShell
         terminal.startProcess(executable: shell, args: Config.shellArgs)
@@ -54,11 +101,8 @@ final class TermWindowController: NSWindowController, NSWindowDelegate, LocalPro
 
     func applyAppearance() {
         let theme = Config.theme
-        terminal.font = FontState.current
-        terminal.nativeBackgroundColor = theme.background
-        terminal.nativeForegroundColor = theme.foreground
-        terminal.caretColor = theme.cursor
-        window?.backgroundColor = theme.background
+        terminal.applyTheme(theme)
+        if let window { applyWindowChrome(window, theme: theme) }
     }
 
     func showCentered() {
@@ -66,6 +110,7 @@ final class TermWindowController: NSWindowController, NSWindowDelegate, LocalPro
         window?.makeKeyAndOrderFront(nil)
         window?.makeFirstResponder(terminal)
         NSApp.activate(ignoringOtherApps: true)
+        if let window { applyWindowChrome(window, theme: Config.theme) }
     }
 
     static var frontmost: TermWindowController? {
@@ -87,6 +132,7 @@ final class TermWindowController: NSWindowController, NSWindowDelegate, LocalPro
             current.addTabbedWindow(win, ordered: .above)
             win.makeKeyAndOrderFront(nil)
             win.makeFirstResponder(wc.terminal)
+            applyWindowChrome(win, theme: Config.theme)
         }
     }
     #endif

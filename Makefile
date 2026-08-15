@@ -1,4 +1,4 @@
-VERSION  = 1.1.1
+VERSION  = 1.2.0
 IDENTITY = Developer ID Application: Manabu Bannai (4WRDD55WT2)
 BIN      = .build/release/mbcode
 

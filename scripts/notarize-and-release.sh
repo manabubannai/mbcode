@@ -4,7 +4,7 @@
 set -u
 cd "$(dirname "$0")/.."
 LOG=dist/notarize.log
-VERSION=1.1.1
+VERSION=1.2.0
 APPS=("Kurogane Lite:Kurogane-lite" "Kurogane:Kurogane" "Kurogane Pro:Kurogane-pro")
 
 log() { echo "[$(date '+%H:%M:%S')] $*" >> "$LOG"; }

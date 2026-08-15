@@ -68,6 +68,7 @@ final class HotKeyTerminal: NSObject, NSWindowDelegate, LocalProcessTerminalView
             panel.makeKeyAndOrderFront(nil)
             panel.makeFirstResponder(terminal)
             NSApp.activate(ignoringOtherApps: true)
+            applyWindowChrome(panel, theme: Config.theme)
         }
     }
 
@@ -90,16 +91,12 @@ final class HotKeyTerminal: NSObject, NSWindowDelegate, LocalProcessTerminalView
         panel.titlebarAppearsTransparent = true
         panel.level = .floating
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        panel.backgroundColor = theme.background
         panel.delegate = self
         panel.isReleasedWhenClosed = false
 
         let terminal = LocalProcessTerminalView(frame: panel.contentLayoutRect)
         terminal.processDelegate = self
-        terminal.font = FontState.current
-        terminal.nativeBackgroundColor = theme.background
-        terminal.nativeForegroundColor = theme.foreground
-        terminal.caretColor = theme.cursor
+        terminal.applyTheme(theme)
         terminal.autoresizingMask = [.width, .height]
         panel.contentView = terminal
         terminal.startProcess(executable: Config.resolvedShell, args: Config.shellArgs)

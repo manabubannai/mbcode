@@ -1,13 +1,37 @@
 import AppKit
 
 // 配色テーマ。config.json の "theme" で切り替える。
+// clear-light はマナブの Terminal.app「Clear Light」プロファイルの実測値を移植したもの。
 struct Theme {
     let name: String
     let background: NSColor
     let foreground: NSColor
     let cursor: NSColor
+    var selection: NSColor? = nil
+    var ansi: [NSColor]? = nil        // ANSI 16色（通常8 + 明るい8）
+    var backgroundAlpha: CGFloat = 1.0
+    var blur: Bool = false            // 半透明背景にすりガラスのぼかしをかける
+
+    private static func rgb(_ hex: UInt32) -> NSColor {
+        NSColor(srgbRed: CGFloat((hex >> 16) & 0xFF) / 255,
+                green: CGFloat((hex >> 8) & 0xFF) / 255,
+                blue: CGFloat(hex & 0xFF) / 255, alpha: 1.0)
+    }
 
     static let all: [Theme] = [
+        Theme(name: "clear-light",
+              background: rgb(0xFFFFFF),
+              foreground: rgb(0x111E25),
+              cursor: rgb(0x919191),
+              selection: rgb(0xB7D6FF),
+              ansi: [
+                rgb(0x0E161C), rgb(0xB35547), rgb(0x6CAA70), rgb(0xC4AB62),
+                rgb(0x5685A7), rgb(0xAC63BD), rgb(0x69C5C8), rgb(0xC1C8CC),
+                rgb(0x0B1319), rgb(0xDF6C59), rgb(0x78BD7D), rgb(0xE5C871),
+                rgb(0x48A1E1), rgb(0xD389E5), rgb(0x77E1E5), rgb(0xD7E1E6),
+              ],
+              backgroundAlpha: 0.93,
+              blur: true),
         Theme(name: "manabu-dark",
               background: NSColor(calibratedRed: 0.09, green: 0.09, blue: 0.11, alpha: 1.0),
               foreground: NSColor(calibratedWhite: 0.92, alpha: 1.0),

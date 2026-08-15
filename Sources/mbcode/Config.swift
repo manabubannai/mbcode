@@ -21,6 +21,7 @@ struct ConfigFile: Codable {
     var fontName: String?
     var fontSize: CGFloat?
     var theme: String?
+    var lineSpacing: CGFloat?
     var shell: String?
     var windowWidth: CGFloat?
     var windowHeight: CGFloat?
@@ -32,9 +33,11 @@ enum Config {
     static let dir = (NSHomeDirectory() as NSString).appendingPathComponent(".mbcode")
     static let path = (dir as NSString).appendingPathComponent("config.json")
 
-    private(set) static var fontName: String? = nil
-    private(set) static var fontSize: CGFloat = 14
-    private(set) static var themeName: String = "manabu-dark"
+    // デフォルトはマナブの Terminal.app「Clear Light」プロファイルと同じ見た目
+    private(set) static var fontName: String? = "PlemolJPConsoleNF-Regular"
+    private(set) static var fontSize: CGFloat = 13
+    private(set) static var themeName: String = "clear-light"
+    private(set) static var lineSpacing: CGFloat = 1.29   // Terminal.app の FontHeightSpacing 相当
     private(set) static var shell: String? = nil
     private(set) static var windowWidth: CGFloat = 980
     private(set) static var windowHeight: CGFloat = 640
@@ -80,6 +83,7 @@ enum Config {
         fontName = file.fontName ?? fontName
         fontSize = file.fontSize ?? fontSize
         themeName = file.theme ?? themeName
+        lineSpacing = file.lineSpacing ?? lineSpacing
         shell = file.shell ?? shell
         windowWidth = file.windowWidth ?? windowWidth
         windowHeight = file.windowHeight ?? windowHeight
@@ -89,8 +93,10 @@ enum Config {
 
     static let sampleJSON = """
     {
-      "fontSize": 14,
-      "theme": "manabu-dark",
+      "fontName": "PlemolJPConsoleNF-Regular",
+      "fontSize": 13,
+      "theme": "clear-light",
+      "lineSpacing": 1.29,
       "hotkey": "option-space",
       "commands": [
         { "keyword": "cc", "title": "Claude Code（全権限モード）",
