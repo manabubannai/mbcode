@@ -27,6 +27,9 @@ struct ConfigFile: Codable {
     var windowWidth: CGFloat?
     var windowHeight: CGFloat?
     var hotkey: String?
+    var launcherHotkey: String?
+    var launcherCommand: String?
+    var projectsDir: String?
     var commands: [QuickCommand]?
 }
 
@@ -46,6 +49,12 @@ enum Config {
     private(set) static var commands: [QuickCommand] = defaultCommands
     // Pro のグローバルホットキー（例: "option-space", "control-option-space", "command-shift-t", "f12"）
     private(set) static var hotkey: String = "option-space"
+    // どこでもランチャー（⇧⌘Space）。プロジェクトを選んでターミナルを開く
+    private(set) static var launcherHotkey: String = "shift-command-space"
+    // 自動検出したプロジェクトを開くときに実行するコマンド
+    private(set) static var launcherCommand: String = "claude"
+    // gitリポジトリを自動検出するフォルダ
+    private(set) static var projectsDir: String = "~/Documents"
 
     static let shellArgs: [String] = ["-l"]
 
@@ -91,6 +100,9 @@ enum Config {
         windowWidth = file.windowWidth ?? windowWidth
         windowHeight = file.windowHeight ?? windowHeight
         hotkey = file.hotkey ?? hotkey
+        launcherHotkey = file.launcherHotkey ?? launcherHotkey
+        launcherCommand = file.launcherCommand ?? launcherCommand
+        projectsDir = file.projectsDir ?? projectsDir
         commands = file.commands ?? commands
     }
 
@@ -102,6 +114,9 @@ enum Config {
       "lineSpacing": 1.29,
       "padding": 14,
       "hotkey": "option-space",
+      "launcherHotkey": "shift-command-space",
+      "launcherCommand": "claude",
+      "projectsDir": "~/Documents",
       "commands": [
         { "keyword": "cc", "title": "Claude Code（全権限モード）",
           "directory": "~", "command": "claude --dangerously-skip-permissions" },

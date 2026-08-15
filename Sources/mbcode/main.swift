@@ -8,6 +8,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #if FEATURE_HOTKEY
         HotKeyTerminal.shared.register()
         #endif
+        #if FEATURE_PALETTE
+        CommandPalette.shared.registerGlobalHotKey()
+        #endif
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
     }
@@ -123,7 +126,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let cmdItem = NSMenuItem(); mainMenu.addItem(cmdItem)
         let cmdMenu = NSMenu(title: "Commands")
         #if FEATURE_PALETTE
-        cmdMenu.addItem(withTitle: "コマンドパレット", action: #selector(togglePalette(_:)), keyEquivalent: "k")
+        cmdMenu.addItem(withTitle: "ランチャー", action: #selector(togglePalette(_:)), keyEquivalent: "k")
+        let globalItem = NSMenuItem(title: "ランチャー（どこでも）", action: #selector(togglePalette(_:)), keyEquivalent: " ")
+        globalItem.keyEquivalentModifierMask = [.command, .shift]
+        cmdMenu.addItem(globalItem)
         cmdMenu.addItem(NSMenuItem.separator())
         #endif
         for (i, cmd) in Config.commands.prefix(9).enumerated() {

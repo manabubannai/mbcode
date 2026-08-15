@@ -1,13 +1,14 @@
-VERSION  = 1.3.1
+VERSION  = 1.4.0
 IDENTITY = Developer ID Application: Manabu Bannai (4WRDD55WT2)
 BIN      = .build/release/mbcode
 
-STD_FLAGS = -Xswiftc -DFEATURE_TABS -Xswiftc -DFEATURE_PALETTE
-PRO_FLAGS = $(STD_FLAGS) -Xswiftc -DFEATURE_HOTKEY
+FLAGS = -Xswiftc -DFEATURE_TABS -Xswiftc -DFEATURE_PALETTE -Xswiftc -DFEATURE_HOTKEY
 
-.PHONY: all lite standard pro icon run clean
+.PHONY: all icon run clean
 
-all: lite standard pro
+all: icon
+	swift build -c release $(FLAGS)
+	$(call assemble,Zen Code,com.manabu.mbcode,Zen Code)
 
 icon:
 	swift scripts/makeicon.swift dist
@@ -26,19 +27,7 @@ define assemble
 	    --sign "$(IDENTITY)" "dist/$(3).app"
 endef
 
-lite: icon
-	swift build -c release
-	$(call assemble,Zen Code Lite,com.manabu.mbcode.lite,Zen Code Lite)
-
-standard: icon
-	swift build -c release $(STD_FLAGS)
-	$(call assemble,Zen Code,com.manabu.mbcode,Zen Code)
-
-pro: icon
-	swift build -c release $(PRO_FLAGS)
-	$(call assemble,Zen Code Pro,com.manabu.mbcode.pro,Zen Code Pro)
-
-run: standard
+run: all
 	open "dist/Zen Code.app"
 
 clean:

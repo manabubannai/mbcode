@@ -95,7 +95,7 @@ final class TermWindowController: NSWindowController, NSWindowDelegate, LocalPro
 
         if let cmd = command {
             let dir = cmd.expandedDirectory.replacingOccurrences(of: "'", with: "'\\''")
-            let line = "cd '\(dir)' && \(cmd.command)\n"
+            let line = cmd.command.isEmpty ? "cd '\(dir)'\n" : "cd '\(dir)' && \(cmd.command)\n"
             // シェルの初期化を待ってから流し込む
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
                 self?.terminal.send(txt: line)
@@ -126,6 +126,12 @@ final class TermWindowController: NSWindowController, NSWindowDelegate, LocalPro
     }
 
     static var allControllers: [TermWindowController] { live }
+
+    var projectDirectory: String? { initialCommand?.expandedDirectory }
+
+    static func controller(forDirectory dir: String) -> TermWindowController? {
+        live.first { $0.projectDirectory == dir && $0.window != nil }
+    }
 
     // MARK: - NSWindowDelegate
 
