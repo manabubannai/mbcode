@@ -1,4 +1,4 @@
-VERSION  = 1.2.1
+VERSION  = 1.3.0
 IDENTITY = Developer ID Application: Manabu Bannai (4WRDD55WT2)
 BIN      = .build/release/mbcode
 
@@ -28,18 +28,18 @@ endef
 
 lite: icon
 	swift build -c release
-	$(call assemble,Kurogane Lite,com.manabu.mbcode.lite,Kurogane Lite)
+	$(call assemble,Zen Code Lite,com.manabu.mbcode.lite,Zen Code Lite)
 
 standard: icon
 	swift build -c release $(STD_FLAGS)
-	$(call assemble,Kurogane,com.manabu.mbcode,Kurogane)
+	$(call assemble,Zen Code,com.manabu.mbcode,Zen Code)
 
 pro: icon
 	swift build -c release $(PRO_FLAGS)
-	$(call assemble,Kurogane Pro,com.manabu.mbcode.pro,Kurogane Pro)
+	$(call assemble,Zen Code Pro,com.manabu.mbcode.pro,Zen Code Pro)
 
 run: standard
-	open "dist/Kurogane.app"
+	open "dist/Zen Code.app"
 
 clean:
 	rm -rf .build dist

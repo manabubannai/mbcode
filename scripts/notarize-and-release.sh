@@ -4,8 +4,8 @@
 set -u
 cd "$(dirname "$0")/.."
 LOG=dist/notarize.log
-VERSION=1.2.1
-APPS=("Kurogane Lite:Kurogane-lite" "Kurogane:Kurogane" "Kurogane Pro:Kurogane-pro")
+VERSION=1.3.0
+APPS=("Zen Code:ZenCode")   # 配布はStandard 1版のみ（マナブ方針）
 
 log() { echo "[$(date '+%H:%M:%S')] $*" >> "$LOG"; }
 
@@ -49,10 +49,8 @@ done
 
 log "GitHub Release作成"
 gh release create "v${VERSION}" \
-  dist/upload/Kurogane.zip \
-  dist/upload/Kurogane-lite.zip \
-  dist/upload/Kurogane-pro.zip \
-  --title "Kurogane v${VERSION}" \
+  dist/upload/ZenCode.zip \
+  --title "Zen Code v${VERSION}" \
   --notes-file scripts/release-notes.md >> "$LOG" 2>&1 || { log "ERROR: gh release create 失敗"; exit 4; }
 
 log "=== 完了: https://github.com/manabubannai/mbcode/releases/tag/v${VERSION} ==="
