@@ -4,7 +4,7 @@ import AppKit
 // どこでもランチャー。⌘K（アプリ内）と ⇧⌘Space（グローバル）で開く。
 // Alfred のように "cc" と打って Enter で該当ディレクトリにターミナルを開く。
 // 候補 = config.json の commands + projectsDir 直下のgitリポジトリ（自動検出）。
-// 同じディレクトリのウィンドウが既にあればそれにフォーカスする。⌘Enter はコマンド無しのシェルだけ開く。
+// 選択したら常に新規タブで開く（タブ機能が無いエディションは新規ウィンドウ）。⌘Enter はコマンド無しのシェルだけ開く。
 final class CommandPalette: NSObject, NSTextFieldDelegate, NSTableViewDataSource, NSTableViewDelegate {
     static let shared = CommandPalette()
 
@@ -242,16 +242,24 @@ final class CommandPalette: NSObject, NSTextFieldDelegate, NSTableViewDataSource
         let item = filtered[row]
         close()
         recordUse(item)
-        // 同じプロジェクトのウィンドウが既にあればフォーカスするだけ
-        if let existing = TermWindowController.controller(forDirectory: item.directory) {
-            existing.window?.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
-            return
-        }
         let qc = QuickCommand(keyword: item.keyword, title: item.title,
                               directory: item.directory,
                               command: plainShell ? "" : item.command)
-        TermWindowController(command: qc).showCentered()
+        // 新しいコントローラを作る前にタブの親ウィンドウを決めておく
+        // （生成後だと live.last が自分自身を指してしまう）
+        let host = TermWindowController.frontmost?.window
+        let wc = TermWindowController(command: qc)
+        #if FEATURE_TABS
+        if let host, let win = wc.window {
+            host.addTabbedWindow(win, ordered: .above)
+            win.makeKeyAndOrderFront(nil)
+            win.makeFirstResponder(wc.terminal)
+            NSApp.activate(ignoringOtherApps: true)
+            applyWindowChrome(win, theme: Config.theme)
+            return
+        }
+        #endif
+        wc.showCentered()
     }
 
     // MARK: - NSTextFieldDelegate

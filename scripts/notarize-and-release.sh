@@ -4,7 +4,7 @@
 set -u
 cd "$(dirname "$0")/.."
 LOG=dist/notarize.log
-VERSION=1.4.0
+VERSION=1.6.0
 APPS=("Zen Code:ZenCode")   # 配布はStandard 1版のみ（マナブ方針）
 
 log() { echo "[$(date '+%H:%M:%S')] $*" >> "$LOG"; }

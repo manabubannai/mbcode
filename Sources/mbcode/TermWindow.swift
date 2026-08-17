@@ -52,6 +52,53 @@ func applyWindowChrome(_ window: NSWindow, theme: Theme) {
     }
 }
 
+// ファイル/スクリーンショットのドロップでパスを入力欄に流し込むターミナル。
+// スクショのサムネイル・プレビューからのドラッグは実ファイルではなく
+// 「ファイルプロミス」で届くため、一時フォルダに実体化してからパスを送る。
+final class DropTerminalView: LocalProcessTerminalView {
+    private static let promiseQueue = OperationQueue()
+
+    public override init(frame: CGRect) {
+        super.init(frame: frame)
+        var types: [NSPasteboard.PasteboardType] = [.fileURL]
+        types += NSFilePromiseReceiver.readableDraggedTypes.map { NSPasteboard.PasteboardType($0) }
+        registerForDraggedTypes(types)
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation { .copy }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        let pb = sender.draggingPasteboard
+        if let receivers = pb.readObjects(forClasses: [NSFilePromiseReceiver.self]) as? [NSFilePromiseReceiver],
+           !receivers.isEmpty {
+            let dir = FileManager.default.temporaryDirectory
+                .appendingPathComponent("ZenCodeDrops/\(UUID().uuidString)", isDirectory: true)
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            for receiver in receivers {
+                receiver.receivePromisedFiles(atDestination: dir, options: [:],
+                                              operationQueue: Self.promiseQueue) { url, error in
+                    guard error == nil else { return }
+                    DispatchQueue.main.async { [weak self] in self?.sendPath(url) }
+                }
+            }
+            return true
+        }
+        if let urls = pb.readObjects(forClasses: [NSURL.self],
+                                     options: [.urlReadingFileURLsOnly: true]) as? [URL],
+           !urls.isEmpty {
+            for url in urls { sendPath(url) }
+            return true
+        }
+        return false
+    }
+
+    private func sendPath(_ url: URL) {
+        send(txt: "'" + url.path.replacingOccurrences(of: "'", with: "'\\''") + "' ")
+    }
+}
+
 // 1ウィンドウ = 1シェル。クイックコマンド指定があれば起動後に流し込む。
 final class TermWindowController: NSWindowController, NSWindowDelegate, LocalProcessTerminalViewDelegate {
     private static var live: [TermWindowController] = []
@@ -62,7 +109,7 @@ final class TermWindowController: NSWindowController, NSWindowDelegate, LocalPro
     init(command: QuickCommand? = nil) {
         initialCommand = command
         let rect = NSRect(x: 0, y: 0, width: Config.windowWidth, height: Config.windowHeight)
-        terminal = LocalProcessTerminalView(frame: rect)
+        terminal = DropTerminalView(frame: rect)
 
         let window = NSWindow(
             contentRect: rect,
@@ -103,6 +150,8 @@ final class TermWindowController: NSWindowController, NSWindowDelegate, LocalPro
         }
 
         Self.live.append(self)
+        // バックグラウンド常駐（accessory）からウィンドウを開いたらDockに戻す
+        NSApp.setActivationPolicy(.regular)
     }
 
     required init?(coder: NSCoder) { fatalError() }
@@ -137,6 +186,13 @@ final class TermWindowController: NSWindowController, NSWindowDelegate, LocalPro
 
     func windowWillClose(_ notification: Notification) {
         Self.live.removeAll { $0 === self }
+        #if FEATURE_HOTKEY || FEATURE_PALETTE
+        // 最後のウィンドウを閉じたらDockから消えてバックグラウンド常駐に戻る
+        // （ホットキーは生きたまま。⇧⌘Space / ⌥Space でいつでも復帰）
+        if Self.live.isEmpty {
+            NSApp.setActivationPolicy(.accessory)
+        }
+        #endif
     }
 
     #if FEATURE_TABS

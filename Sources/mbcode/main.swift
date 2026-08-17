@@ -1,23 +1,39 @@
 import AppKit
+import Carbon
 import SwiftTerm
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         buildMenu()
-        TermWindowController().showCentered()
+        if launchedAsLoginItem() {
+            // ログイン時はウィンドウを開かずDockにも出さない。
+            // ホットキー（ランチャー/Quake）だけ生かして常駐する。
+            NSApp.setActivationPolicy(.accessory)
+        } else {
+            TermWindowController().showCentered()
+            NSApp.setActivationPolicy(.regular)
+            NSApp.activate(ignoringOtherApps: true)
+        }
         #if FEATURE_HOTKEY
         HotKeyTerminal.shared.register()
         #endif
         #if FEATURE_PALETTE
         CommandPalette.shared.registerGlobalHotKey()
         #endif
-        NSApp.setActivationPolicy(.regular)
-        NSApp.activate(ignoringOtherApps: true)
+        LoginItem.setupOnLaunch()
+    }
+
+    // ログイン項目としての起動は open イベントに 'lgit' が付く
+    private func launchedAsLoginItem() -> Bool {
+        guard let event = NSAppleEventManager.shared().currentAppleEvent,
+              event.eventID == AEEventID(kAEOpenApplication),
+              let prop = event.paramDescriptor(forKeyword: AEKeyword(keyAEPropData)) else { return false }
+        return prop.enumCodeValue == OSType(keyAELaunchedAsLogInItem)
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        #if FEATURE_HOTKEY
-        return false   // Pro は ⌥Space 常駐のため残す
+        #if FEATURE_HOTKEY || FEATURE_PALETTE
+        return false   // グローバルホットキー（ランチャー/Quake）常駐のため残す
         #else
         return true
         #endif
@@ -63,6 +79,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         BugReport.shared.show()
     }
 
+    @objc func toggleLoginItem(_ sender: NSMenuItem) {
+        LoginItem.toggle()
+    }
+
+    func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        if item.action == #selector(toggleLoginItem(_:)) {
+            item.state = LoginItem.isEnabled ? .on : .off
+        }
+        return true
+    }
+
     @objc func fontBigger(_ sender: Any?) { changeFont(by: +1) }
     @objc func fontSmaller(_ sender: Any?) { changeFont(by: -1) }
     @objc func fontReset(_ sender: Any?) {
@@ -96,6 +123,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         appMenu.addItem(NSMenuItem.separator())
         let pref = NSMenuItem(title: "設定を開く（config.json）", action: #selector(openConfig(_:)), keyEquivalent: ",")
         appMenu.addItem(pref)
+        appMenu.addItem(withTitle: "ログイン時に自動起動（バックグラウンド常駐）",
+                        action: #selector(toggleLoginItem(_:)), keyEquivalent: "")
         appMenu.addItem(withTitle: "バグを報告…", action: #selector(reportBug(_:)), keyEquivalent: "")
         appMenu.addItem(NSMenuItem.separator())
         appMenu.addItem(withTitle: "Hide \(appName)", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
