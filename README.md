@@ -12,7 +12,6 @@ Alfred でやっていた「`cc` と打つだけで Claude Code が全権限モ�
 | ターミナル（複数ウィンドウ・テーマ・フォント調整） | ✅ | ✅ | ✅ |
 | クイックコマンド（メニュー / ⌘1〜⌘9） | ✅ | ✅ | ✅ |
 | タブ（⌘T） | — | ✅ | ✅ |
-| コマンドパレット（⌘K で "cc" と打って Enter） | — | ✅ | ✅ |
 | グローバルホットキーの呼び出しターミナル（⌥Space） | — | — | ✅ |
 
 どれも署名・公証済みの .app です。[Releases](../../releases) から zip をダウンロードして、
@@ -22,7 +21,7 @@ Alfred でやっていた「`cc` と打つだけで Claude Code が全権限モ�
 
 - 初回起動で `~/.mbcode/config.json` が生成されます（⌘, でいつでも開けます）
 - **クイックコマンド**: `config.json` の `commands` に「キーワード・ディレクトリ・コマンド」を書くと、
-  Commands メニュー（⌘1〜⌘9）と ⌘K パレットから一発起動できます
+  Commands メニュー（⌘1〜⌘9）と Zen Launcher（⌘Space）から一発起動できます
 
 ```json
 {
@@ -41,6 +40,9 @@ Alfred でやっていた「`cc` と打つだけで Claude Code が全権限モ�
 - `hotkey`（Pro）: `option-space` がデフォルト。**Alfred の ⌥Space と被る人は**
   `control-option-space` や `f12` などに変更してください
 - `shell`: 未指定ならログインシェル（`$SHELL -l`）
+- `mouseReporting`: 既定 `false`（ドラッグは常に文字選択）。`true` にすると vim/less などに
+  マウス操作を渡すかわりに、ドラッグでの文字選択ができなくなります。View メニュー
+  「マウス操作をアプリに渡す」（⌥⌘M）でも切り替えられます
 
 ## 自分でビルドする
 

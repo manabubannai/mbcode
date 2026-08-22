@@ -1,39 +1,80 @@
 import AppKit
-import Carbon
 import SwiftTerm
+import ZenKit
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    func applicationDidFinishLaunching(_ notification: Notification) {
+    // zencode:// 経由で起動された場合はデフォルトウィンドウを出さない
+    private var openedViaURL = false
+
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        // application(_:open:) は didFinishLaunching より先に届くことがあるため
+        // メニュー構築はここで済ませておく
         buildMenu()
-        if launchedAsLoginItem() {
-            // ログイン時はウィンドウを開かずDockにも出さない。
-            // ホットキー（ランチャー/Quake）だけ生かして常駐する。
-            NSApp.setActivationPolicy(.accessory)
-        } else {
+    }
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        #if FEATURE_TABS
+        TermWindowController.installTabRenameMonitor()
+        #endif
+        // v1.6.x が自動登録したログイン項目を解除（常駐は Zen Launcher へ移管）
+        LoginItem.removeCompletely()
+        if TermWindowController.allControllers.isEmpty && !openedViaURL {
             TermWindowController().showCentered()
-            NSApp.setActivationPolicy(.regular)
-            NSApp.activate(ignoringOtherApps: true)
         }
+        NSApp.activate(ignoringOtherApps: true)
         #if FEATURE_HOTKEY
         HotKeyTerminal.shared.register()
         #endif
-        #if FEATURE_PALETTE
-        CommandPalette.shared.registerGlobalHotKey()
-        #endif
-        LoginItem.setupOnLaunch()
+        // 設定画面（Zen Launcher 側含む）でホットキーが変わったら追従する
+        DistributedNotificationCenter.default().addObserver(
+            forName: Config.hotkeysChangedNote, object: nil, queue: .main) { _ in
+            Config.load()
+            #if FEATURE_HOTKEY
+            HotKeyTerminal.shared.register()
+            #endif
+        }
     }
 
-    // ログイン項目としての起動は open イベントに 'lgit' が付く
-    private func launchedAsLoginItem() -> Bool {
-        guard let event = NSAppleEventManager.shared().currentAppleEvent,
-              event.eventID == AEEventID(kAEOpenApplication),
-              let prop = event.paramDescriptor(forKeyword: AEKeyword(keyAEPropData)) else { return false }
-        return prop.enumCodeValue == OSType(keyAELaunchedAsLogInItem)
+    // Zen Launcher からの zencode://open?keyword=cc / zencode://open?path=/dir[&plain=1]
+    // セキュリティ: URLからは任意コマンドを受け取らない。実行するのは
+    // config.json の commands（keyword一致）か launcherCommand だけ。
+    func application(_ application: NSApplication, open urls: [URL]) {
+        for url in urls where url.scheme == "zencode" {
+            guard url.host == "open",
+                  let comps = URLComponents(url: url, resolvingAgainstBaseURL: false) else { continue }
+            func query(_ name: String) -> String? {
+                comps.queryItems?.first { $0.name == name }?.value
+            }
+            let plain = query("plain") == "1"
+            var qc: QuickCommand?
+            if let kw = query("keyword"),
+               let cmd = Config.commands.first(where: { $0.keyword == kw }) {
+                qc = QuickCommand(keyword: cmd.keyword, title: cmd.title,
+                                  directory: cmd.directory,
+                                  command: plain ? "" : cmd.command)
+            } else if let path = query("path") {
+                let dir = (path as NSString).expandingTildeInPath
+                var isDir: ObjCBool = false
+                guard FileManager.default.fileExists(atPath: dir, isDirectory: &isDir),
+                      isDir.boolValue else { continue }
+                let name = (dir as NSString).lastPathComponent
+                qc = QuickCommand(keyword: name, title: name, directory: dir,
+                                  command: plain ? "" : Config.launcherCommand)
+            }
+            guard let qc else { continue }
+            openedViaURL = true
+            openInTab(qc)
+        }
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        // dist-next に新しいビルドがあれば、終了後に dist を差し替える
+        SelfUpdate.installPendingBuildOnQuit()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        #if FEATURE_HOTKEY || FEATURE_PALETTE
-        return false   // グローバルホットキー（ランチャー/Quake）常駐のため残す
+        #if FEATURE_HOTKEY
+        return false   // ⌥Space のQuakeターミナル（シェル常駐）を生かすため残す
         #else
         return true
         #endif
@@ -60,12 +101,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     #endif
 
-    #if FEATURE_PALETTE
-    @objc func togglePalette(_ sender: Any?) {
-        CommandPalette.shared.toggle()
-    }
-    #endif
-
     @objc func runQuickCommand(_ sender: NSMenuItem) {
         guard Config.commands.indices.contains(sender.tag) else { return }
         TermWindowController(command: Config.commands[sender.tag]).showCentered()
@@ -75,17 +110,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSWorkspace.shared.open(URL(fileURLWithPath: Config.path))
     }
 
+    @objc func openHotkeySettings(_ sender: Any?) {
+        HotkeySettings.shared.show()
+    }
+
     @objc func reportBug(_ sender: Any?) {
         BugReport.shared.show()
     }
 
-    @objc func toggleLoginItem(_ sender: NSMenuItem) {
-        LoginItem.toggle()
+    @objc func tileNow(_ sender: Any?) {
+        TileLayout.retile(force: true)
+    }
+
+    @objc func toggleAutoTile(_ sender: NSMenuItem) {
+        TileLayout.enabled.toggle()
+    }
+
+    // マウス操作をターミナル内のアプリに渡すか。ONにすると vim/less などで
+    // マウスが使えるかわりに、ドラッグでの文字選択ができなくなる
+    @objc func toggleMouseReporting(_ sender: NSMenuItem) {
+        MouseState.reportingToApp.toggle()
     }
 
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
-        if item.action == #selector(toggleLoginItem(_:)) {
-            item.state = LoginItem.isEnabled ? .on : .off
+        if item.action == #selector(toggleAutoTile(_:)) {
+            item.state = TileLayout.enabled ? .on : .off
+        }
+        if item.action == #selector(toggleMouseReporting(_:)) {
+            item.state = MouseState.reportingToApp ? .on : .off
         }
         return true
     }
@@ -121,10 +173,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         appMenu.addItem(withTitle: "About \(appName)",
                         action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
         appMenu.addItem(NSMenuItem.separator())
-        let pref = NSMenuItem(title: "設定を開く（config.json）", action: #selector(openConfig(_:)), keyEquivalent: ",")
+        let pref = NSMenuItem(title: "設定…", action: #selector(openHotkeySettings(_:)), keyEquivalent: ",")
         appMenu.addItem(pref)
-        appMenu.addItem(withTitle: "ログイン時に自動起動（バックグラウンド常駐）",
-                        action: #selector(toggleLoginItem(_:)), keyEquivalent: "")
+        appMenu.addItem(withTitle: "設定を開く（config.json）", action: #selector(openConfig(_:)), keyEquivalent: "")
         appMenu.addItem(withTitle: "バグを報告…", action: #selector(reportBug(_:)), keyEquivalent: "")
         appMenu.addItem(NSMenuItem.separator())
         appMenu.addItem(withTitle: "Hide \(appName)", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
@@ -139,6 +190,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #if FEATURE_TABS
         shellMenu.addItem(withTitle: "新規タブ", action: #selector(newTab(_:)), keyEquivalent: "t")
         #endif
+        let renameItem = NSMenuItem(title: "タブ名を変更…",
+                                    action: #selector(TermWindowController.renameTab(_:)),
+                                    keyEquivalent: "r")
+        renameItem.keyEquivalentModifierMask = [.command, .shift]
+        shellMenu.addItem(renameItem)
         shellMenu.addItem(NSMenuItem.separator())
         shellMenu.addItem(withTitle: "閉じる", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
         shellItem.submenu = shellMenu
@@ -154,13 +210,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Commands
         let cmdItem = NSMenuItem(); mainMenu.addItem(cmdItem)
         let cmdMenu = NSMenu(title: "Commands")
-        #if FEATURE_PALETTE
-        cmdMenu.addItem(withTitle: "ランチャー", action: #selector(togglePalette(_:)), keyEquivalent: "k")
-        let globalItem = NSMenuItem(title: "ランチャー（どこでも）", action: #selector(togglePalette(_:)), keyEquivalent: " ")
-        globalItem.keyEquivalentModifierMask = [.command, .shift]
-        cmdMenu.addItem(globalItem)
-        cmdMenu.addItem(NSMenuItem.separator())
-        #endif
         for (i, cmd) in Config.commands.prefix(9).enumerated() {
             let item = NSMenuItem(title: "\(cmd.keyword) — \(cmd.title)",
                                   action: #selector(runQuickCommand(_:)),
@@ -178,6 +227,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         viewMenu.addItem(withTitle: "フォントを大きく", action: #selector(fontBigger(_:)), keyEquivalent: "+")
         viewMenu.addItem(withTitle: "フォントを小さく", action: #selector(fontSmaller(_:)), keyEquivalent: "-")
         viewMenu.addItem(withTitle: "フォントをリセット", action: #selector(fontReset(_:)), keyEquivalent: "0")
+        viewMenu.addItem(NSMenuItem.separator())
+        let tileItem = NSMenuItem(title: "ターミナルを並べて表示", action: #selector(tileNow(_:)), keyEquivalent: "t")
+        tileItem.keyEquivalentModifierMask = [.command, .option]
+        viewMenu.addItem(tileItem)
+        viewMenu.addItem(withTitle: "自動で並べる（タイル表示）",
+                         action: #selector(toggleAutoTile(_:)), keyEquivalent: "")
+        viewMenu.addItem(NSMenuItem.separator())
+        let mouseItem = NSMenuItem(title: "マウス操作をアプリに渡す（文字選択は無効になる）",
+                                   action: #selector(toggleMouseReporting(_:)), keyEquivalent: "m")
+        mouseItem.keyEquivalentModifierMask = [.command, .option]
+        viewMenu.addItem(mouseItem)
         viewItem.submenu = viewMenu
 
         // Window

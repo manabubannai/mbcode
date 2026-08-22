@@ -1,11 +1,12 @@
 #!/bin/bash
 # notaryプロファイルが使えるようになったら 3エディションを公証→staple→zip→GitHub Release。
-# バックグラウンド実行前提。ログ: dist/notarize.log
+# バックグラウンド実行前提。ログ: $DIST/notarize.log（DIST未指定なら dist）
 set -u
 cd "$(dirname "$0")/.."
-LOG=dist/notarize.log
-VERSION=1.6.0
-APPS=("Zen Code:ZenCode")   # 配布はStandard 1版のみ（マナブ方針）
+DIST="${DIST:-dist}"   # 使用中の dist を避けたいときは DIST=dist-next
+LOG="$DIST/notarize.log"
+VERSION=$(awk -F"= *" '/^VERSION/ {print $2; exit}' Makefile)
+APPS=("Zen Code:ZenCode" "Zen Launcher:ZenLauncher")   # 配布は各アプリ1版のみ（マナブ方針）
 
 log() { echo "[$(date '+%H:%M:%S')] $*" >> "$LOG"; }
 
@@ -22,12 +23,12 @@ for i in $(seq 1 480); do
   sleep 60
 done
 
-mkdir -p dist/upload
+mkdir -p "$DIST/upload"
 FAIL=0
 for pair in "${APPS[@]}"; do
   name="${pair%%:*}"; zipname="${pair##*:}"
-  APP="dist/${name}.app"
-  ZIP="dist/upload/${zipname}.zip"    # バージョン無し名で releases/latest リンクを恒久化
+  APP="$DIST/${name}.app"
+  ZIP="$DIST/upload/${zipname}.zip"    # バージョン無し名で releases/latest リンクを恒久化
   rm -f "$ZIP"
   ditto -c -k --keepParent "$APP" "$ZIP"
   log "submit: $name"
@@ -49,7 +50,7 @@ done
 
 log "GitHub Release作成"
 gh release create "v${VERSION}" \
-  dist/upload/ZenCode.zip \
+  "$DIST/upload/ZenCode.zip" "$DIST/upload/ZenLauncher.zip" \
   --title "Zen Code v${VERSION}" \
   --notes-file scripts/release-notes.md >> "$LOG" 2>&1 || { log "ERROR: gh release create 失敗"; exit 4; }
 

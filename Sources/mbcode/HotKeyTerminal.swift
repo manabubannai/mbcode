@@ -2,6 +2,7 @@
 import AppKit
 import Carbon.HIToolbox
 import SwiftTerm
+import ZenKit
 
 // ⌥Space でどのアプリからでも呼び出せる Quake スタイルターミナル。
 // 画面上部から降りてきて、もう一度 ⌥Space で隠れる。シェルは常駐。
@@ -10,6 +11,9 @@ final class HotKeyTerminal: NSObject, NSWindowDelegate, LocalProcessTerminalView
 
     private var panel: NSPanel?
     private var terminal: LocalProcessTerminalView?
+
+    // 設定変更（マウス操作の行き先など）を Quake ターミナルにも反映するため
+    var terminalView: LocalProcessTerminalView? { terminal }
 
     func register() {
         HotKeys.register(id: 1, spec: Config.hotkey) { HotKeyTerminal.shared.toggle() }
@@ -51,7 +55,7 @@ final class HotKeyTerminal: NSObject, NSWindowDelegate, LocalProcessTerminalView
         panel.delegate = self
         panel.isReleasedWhenClosed = false
 
-        let container = NSView(frame: panel.contentLayoutRect)
+        let container = PaddedContainerView(frame: panel.contentLayoutRect)
         let terminal = DropTerminalView(frame: container.bounds.insetBy(dx: Config.padding, dy: Config.padding))
         terminal.processDelegate = self
         terminal.applyTheme(theme)

@@ -9,7 +9,7 @@
     <key>CFBundleIdentifier</key>
     <string>@BUNDLE_ID@</string>
     <key>CFBundleExecutable</key>
-    <string>mbcode</string>
+    <string>zenlauncher</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleIconFile</key>
@@ -22,23 +22,13 @@
     <string>13.0</string>
     <key>LSApplicationCategoryType</key>
     <string>public.app-category.developer-tools</string>
+    <!-- メニューバー常駐アプリ: Dockに出さない -->
+    <key>LSUIElement</key>
+    <true/>
     <key>NSHighResolutionCapable</key>
     <true/>
-    <key>NSMicrophoneUsageDescription</key>
-    <string>ターミナル内で実行するツール（Claude Codeの音声入力など）がマイクを使用します。</string>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
-    <key>CFBundleURLTypes</key>
-    <array>
-        <dict>
-            <key>CFBundleURLName</key>
-            <string>@BUNDLE_ID@.url</string>
-            <key>CFBundleURLSchemes</key>
-            <array>
-                <string>zencode</string>
-            </array>
-        </dict>
-    </array>
     <key>NSHumanReadableCopyright</key>
     <string>© 2026 Manabu Bannai — MIT License</string>
 </dict>
