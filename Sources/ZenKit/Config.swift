@@ -73,6 +73,7 @@ struct ConfigFile: Codable {
     var links: [WebLink]?
     var mouseReporting: Bool?
     var confirmClose: Bool?
+    var focusLock: Bool?
 }
 
 public enum Config {
@@ -106,6 +107,9 @@ public enum Config {
     public static var mouseReporting: Bool = false
     // 実行中のプロセスがあるウィンドウを閉じるとき確認する（Terminal.app と同じ）
     public private(set) static var confirmClose: Bool = true
+    // AI作業中のタブ／ウィンドウへの切り替えを防ぐフォーカスロック。
+    // 「終わったかな？」と覗きに行く切り替え自体を物理的に不可能にする
+    public private(set) static var focusLock: Bool = true
 
     public static let shellArgs: [String] = ["-l"]
 
@@ -220,6 +224,7 @@ public enum Config {
         links = file.links ?? links
         mouseReporting = file.mouseReporting ?? mouseReporting
         confirmClose = file.confirmClose ?? confirmClose
+        focusLock = file.focusLock ?? focusLock
     }
 
     static let sampleJSON = """
@@ -235,6 +240,7 @@ public enum Config {
       "projectsDir": "~/Documents",
       "mouseReporting": false,
       "confirmClose": true,
+      "focusLock": true,
       "commands": [
         { "keyword": "cc", "title": "Claude Code（全権限モード）",
           "directory": "~", "command": "claude --dangerously-skip-permissions" },

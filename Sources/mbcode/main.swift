@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         #if FEATURE_TABS
         TermWindowController.installTabRenameMonitor()
+        TermWindowController.installFocusLockMonitor()
         #endif
         // v1.6.x が自動登録したログイン項目を解除（常駐は Zen Launcher へ移管）
         LoginItem.removeCompletely()
@@ -122,6 +123,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         TileLayout.retile(force: true)
     }
 
+    // ⇧⌘L: 作業中ロックの緊急解除。今のバーストの間だけロックを外す
+    @objc func liftFocusLocks(_ sender: Any?) {
+        TermWindowController.liftLocksInFrontGroup()
+    }
+
     @objc func toggleAutoTile(_ sender: NSMenuItem) {
         TileLayout.enabled.toggle()
     }
@@ -138,6 +144,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         if item.action == #selector(toggleMouseReporting(_:)) {
             item.state = MouseState.reportingToApp ? .on : .off
+        }
+        if item.action == #selector(liftFocusLocks(_:)) {
+            return TermWindowController.frontGroupHasLocks
         }
         return true
     }
@@ -195,6 +204,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                     keyEquivalent: "r")
         renameItem.keyEquivalentModifierMask = [.command, .shift]
         shellMenu.addItem(renameItem)
+        let unlockItem = NSMenuItem(title: "作業中ロックを解除",
+                                    action: #selector(liftFocusLocks(_:)), keyEquivalent: "l")
+        unlockItem.keyEquivalentModifierMask = [.command, .shift]
+        shellMenu.addItem(unlockItem)
         shellMenu.addItem(NSMenuItem.separator())
         shellMenu.addItem(withTitle: "閉じる", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
         shellItem.submenu = shellMenu

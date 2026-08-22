@@ -1,4 +1,4 @@
-VERSION   = 1.9.1
+VERSION   = 1.10.0
 LVERSION  = 1.3.0
 IDENTITY = Developer ID Application: Manabu Bannai (4WRDD55WT2)
 # 出力先。使用中の dist/Zen Code.app を壊さずビルドしたいときは

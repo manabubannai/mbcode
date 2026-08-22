@@ -180,23 +180,32 @@ final class DropTerminalView: LocalProcessTerminalView {
         pasteboard.setString(text, forType: .string)
     }
 
-    // ── AI作業の完了検知 ──
+    // ── AI作業の検知 ──
     // 「まとまった出力（10KB以上・5秒以上）が続いた後、2秒静止」で完了とみなす。
     // Claude Code が完了時に鳴らすベル（BEL）は即時に完了扱い。
+    // バーストの開始も通知する：フォーカスロックは完了を待たず、
+    // 作業が始まった時点でかける必要があるため。
+    var onWorkStarted: (() -> Void)?
     var onWorkCompleted: (() -> Void)?
     private var burstStart: TimeInterval = 0
     private var burstBytes = 0
     private var lastOutputAt: TimeInterval = 0
     private var quietTimer: Timer?
+    // 同じバースト内で onWorkStarted を一度だけ鳴らすための旗
+    private var startFired = false
 
     override func dataReceived(slice: ArraySlice<UInt8>) {
         super.dataReceived(slice: slice)
         let now = ProcessInfo.processInfo.systemUptime
-        if now - lastOutputAt > 5 { burstStart = now; burstBytes = 0 }
+        if now - lastOutputAt > 5 { burstStart = now; burstBytes = 0; startFired = false }
         lastOutputAt = now
         burstBytes += slice.count
         quietTimer?.invalidate()
         guard burstBytes >= 10_000, now - burstStart >= 5 else { return }
+        if !startFired {
+            startFired = true
+            onWorkStarted?()
+        }
         quietTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: false) { [weak self] _ in
             self?.onWorkCompleted?()
         }
@@ -221,6 +230,14 @@ final class TermWindowController: NSWindowController, NSWindowDelegate, LocalPro
     private var autoTitle: String?
     // AI作業完了バッジ（✅）表示中か。ウィンドウがキーになったら消す
     private var completed = false
+    // AI作業のバースト進行中か。完了（onWorkCompleted）で解除される
+    private var busy = false
+    // ⇧⌘L の緊急解除。今のバーストの間だけロックを外す（次のバーストで再ロック）
+    private var lockLifted = false
+
+    // 作業中フォーカスロックが効いているか。
+    // 自分がキーウィンドウの間は制限されない（ロックは「離れた先から戻る」ときに効く）
+    var isLocked: Bool { Config.focusLock && busy && !lockLifted }
 
     init(command: QuickCommand? = nil) {
         initialCommand = command
@@ -253,6 +270,9 @@ final class TermWindowController: NSWindowController, NSWindowDelegate, LocalPro
         container.addSubview(terminal)
         window.contentView = container
 
+        (terminal as? DropTerminalView)?.onWorkStarted = { [weak self] in
+            self?.markWorkStarted()
+        }
         (terminal as? DropTerminalView)?.onWorkCompleted = { [weak self] in
             self?.markWorkCompleted()
         }
@@ -291,21 +311,92 @@ final class TermWindowController: NSWindowController, NSWindowDelegate, LocalPro
     }
 
     // 表示タイトル = バッジ + (手動タイトル > シェルの自動タイトル > コマンド名)
+    // バッジの優先順は 🔒（作業中ロック）> ✅（完了）> なし
+    private var baseTitle: String {
+        customTitle ?? autoTitle ?? initialCommand?.title ?? "Zen Code"
+    }
+
     private func refreshTitle() {
-        let base = customTitle ?? autoTitle ?? initialCommand?.title ?? "Zen Code"
-        window?.title = completed ? "✅ \(base)" : base
+        if isLocked {
+            window?.title = "🔒 \(baseTitle)"
+        } else {
+            window?.title = completed ? "✅ \(baseTitle)" : baseTitle
+        }
+    }
+
+    private func markWorkStarted() {
+        guard Config.focusLock else { return }
+        busy = true
+        // 新しいバーストでは再ロックする（緊急解除はバースト単位で効く）
+        lockLifted = false
+        refreshTitle()
     }
 
     private func markWorkCompleted() {
+        busy = false
+        lockLifted = false
         // 作業を見ているウィンドウ自体には付けない（気づく必要がないため）
         if window?.isKeyWindow != true {
             completed = true
-            refreshTitle()
         }
+        refreshTitle()
         TileLayout.promote(self)
     }
 
+    // ロックを弾いたときの静かな通知。ビープやアラートではなく、
+    // タイトルを1.2秒だけ「🔒 作業中」に差し替えて元に戻す
+    func flashLocked() {
+        guard let window else { return }
+        window.title = "🔒 作業中"
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
+            self?.refreshTitle()
+        }
+    }
+
+    // フォーカスを戻す先。直前にキーだったロックされていないウィンドウを優先し、
+    // 無ければ表示中のロックされていないウィンドウを拾う
+    private static var lastUnlockedKey: TermWindowController?
+    private static var revertingFocus = false
+
+    private func focusFallback() -> TermWindowController? {
+        if let prev = Self.lastUnlockedKey, prev !== self, !prev.isLocked,
+           prev.window?.isVisible == true {
+            return prev
+        }
+        return Self.live.first { $0 !== self && !$0.isLocked && $0.window?.isVisible == true }
+    }
+
+    // ⇧⌘L: フロントのウィンドウ（タブグループ）内のロックを一時解除する
+    static func liftLocksInFrontGroup() {
+        guard let key = NSApp.keyWindow else { return }
+        let targets = key.tabGroup?.windows ?? [key]
+        for wc in live where wc.window.map({ targets.contains($0) }) ?? false {
+            wc.lockLifted = true
+            wc.refreshTitle()
+        }
+    }
+
+    static var frontGroupHasLocks: Bool {
+        guard let key = NSApp.keyWindow else { return false }
+        let targets = key.tabGroup?.windows ?? [key]
+        return live.contains { $0.isLocked && ($0.window.map { targets.contains($0) } ?? false) }
+    }
+
     func windowDidBecomeKey(_ notification: Notification) {
+        // ロック中なのにキーになってしまった場合の最後の砦。
+        // タブ切替・Windowメニュー・外部からのフォーカスなど全経路をここで弾き、
+        // 直前のウィンドウへ戻す。逃げ場が無い（全部ロック中）ときは
+        // 閉じ込めてしまうのでそのまま許可する
+        if isLocked {
+            if !Self.revertingFocus, let fallback = focusFallback() {
+                Self.revertingFocus = true
+                fallback.window?.makeKeyAndOrderFront(nil)
+                Self.revertingFocus = false
+                flashLocked()
+            }
+            return
+        }
+        Self.lastUnlockedKey = self
         guard completed else { return }
         completed = false
         refreshTitle()
@@ -320,7 +411,8 @@ final class TermWindowController: NSWindowController, NSWindowDelegate, LocalPro
     var projectDirectory: String? { initialCommand?.expandedDirectory }
 
     static func controller(forDirectory dir: String) -> TermWindowController? {
-        live.first { $0.projectDirectory == dir && $0.window != nil }
+        // ロック中のウィンドウはランチャー等からのフォーカス対象から外す
+        live.first { $0.projectDirectory == dir && $0.window != nil && !$0.isLocked }
     }
 
     // MARK: - NSWindowDelegate
@@ -347,6 +439,83 @@ final class TermWindowController: NSWindowController, NSWindowDelegate, LocalPro
     }
 
     #if FEATURE_TABS
+    // 作業中ロックの入口その1: ロック中のタブへの切り替え操作をイベント段階で弾く。
+    // タブボタンのクリックと ⌃Tab / ⇧⌃Tab を監視する。ここで拾いきれなかった
+    // 経路（Windowメニュー等）は windowDidBecomeKey の砦が受け持つ。
+    private static var focusLockMonitorInstalled = false
+    static func installFocusLockMonitor() {
+        guard !focusLockMonitorInstalled else { return }
+        focusLockMonitorInstalled = true
+
+        // タブバーのタブボタンのクリック。タブボタンは非公開ビュー（NSTabButton）のため
+        // クラス名で判定し、ボタン内のラベル文字列から対象ウィンドウを特定する
+        NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { event in
+            guard Config.focusLock, event.clickCount == 1,
+                  let window = event.window,
+                  let group = window.tabGroup,
+                  let root = window.contentView?.superview,
+                  let hit = root.hitTest(event.locationInWindow),
+                  // 閉じるボタン等は妨げない（タブを閉じるのは自由）
+                  !hit.className.contains("Close") else { return event }
+            var view: NSView? = hit
+            while let v = view {
+                if v.className.contains("NSTabButton") {
+                    guard let title = tabButtonTitle(v),
+                          // 今選択中のタブ自身のクリックは何も変えないので通す
+                          title != (group.selectedWindow?.title ?? ""),
+                          let locked = live.first(where: {
+                              $0.isLocked && $0.window?.title == title
+                          }),
+                          // グループ内の他タブが全部ロック中なら閉じ込めになるので通す
+                          groupHasUnlocked(group) else { return event }
+                    locked.flashLocked()
+                    return nil
+                }
+                view = v.superview
+            }
+            return event
+        }
+
+        // ⌃Tab / ⇧⌃Tab（タブ移動）。移動先がロック中なら飲み込む。
+        // キーコード 48 = Tab。メニューのキー等価より先にモニタが呼ばれる
+        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            guard Config.focusLock, event.keyCode == 48,
+                  let window = event.window,
+                  let group = window.tabGroup, group.windows.count > 1 else { return event }
+            let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            guard mods.contains(.control), !mods.contains(.command) else { return event }
+            let wins = group.windows
+            let current = group.selectedWindow ?? window
+            guard let idx = wins.firstIndex(of: current) else { return event }
+            let step = mods.contains(.shift) ? -1 : 1
+            let target = wins[(idx + step + wins.count) % wins.count]
+            guard let wc = live.first(where: { $0.window === target }), wc.isLocked,
+                  groupHasUnlocked(group) else {
+                return event
+            }
+            wc.flashLocked()
+            return nil
+        }
+    }
+
+    // グループ内にロックされていないタブが残っているか（全部ロック中なら閉じ込め防止で素通し）
+    private static func groupHasUnlocked(_ group: NSWindowTabGroup) -> Bool {
+        live.contains { wc in
+            !wc.isLocked && (wc.window.map { group.windows.contains($0) } ?? false)
+        }
+    }
+
+    // タブボタンのビュー階層からラベル文字列（= ウィンドウタイトル）を拾う
+    private static func tabButtonTitle(_ view: NSView) -> String? {
+        for sub in view.subviews {
+            if let field = sub as? NSTextField, !field.stringValue.isEmpty {
+                return field.stringValue
+            }
+            if let found = tabButtonTitle(sub) { return found }
+        }
+        return nil
+    }
+
     // タブバーのダブルクリックで名前編集を開く。
     // タブバーは非公開ビュー（NSTabButton）のため、クラス名のヒットテストで判定する
     private static var tabRenameMonitorInstalled = false
@@ -402,7 +571,7 @@ final class TermWindowController: NSWindowController, NSWindowDelegate, LocalPro
         alert.addButton(withTitle: "OK")
         alert.addButton(withTitle: "キャンセル")
         let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
-        field.stringValue = customTitle ?? window.title
+        field.stringValue = customTitle ?? baseTitle
         alert.accessoryView = field
         alert.window.initialFirstResponder = field
         alert.beginSheetModal(for: window) { [weak self] response in
